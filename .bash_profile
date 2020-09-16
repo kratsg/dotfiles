@@ -12,18 +12,16 @@ atlasJenkins(){
     ssh -N -L localhost:9999:aibuild080.cern.ch:8080 gstark@lxplus.cern.ch
 }
 
-function ssh() {
-  if [ $1 == "lxplus" ]; then
-    sshpass -f <(lpass show --password cern.ch) command ssh lxplus
-  else
-    command ssh $@
-  fi
+function llpass() {
+  lpass status || LPASS_AGENT_TIMEOUT=86400 lpass login --trust kratsg@gmail.com
+  lpass show --password 622087230793016457 | kinit --password-file=STDIN gstark@CERN.CH
 }
 
 if [ -f $(brew --prefix)/etc/bash_completion ]; then
   . $(brew --prefix)/etc/bash_completion
   . $(brew --prefix)/etc/bash_completion.d/git-prompt.sh
 fi
+[ -f ~/.fzf.bash ] && source ~/.fzf.bash
 
 export PYTHONSTARTUP=~/.pythonrc
 PATH=/usr/local/bin:/usr/local/share/npm/bin:$PATH
@@ -83,3 +81,10 @@ export LD_LIBRARY_PATH=$CUDA_ROOT/lib:$LD_LIBRARY_PATH
 export DYLD_LIBRARY_PATH=$CUDA_ROOT/lib:$DYLD_LIBRARY_PATH
 export LIBRARY_PATH=$CUDA_ROOT/lib:$LIBRARY_PATH
 export PATH=/usr/local/cuda/bin:$PATH
+export PATH="/usr/local/opt/sqlite/bin:$PATH"
+
+setup_display() {
+  export ip=$(ifconfig en0 | grep inet | awk '$1=="inet" {print $2}')
+  xhost + $ip
+  echo "run with -e DISPLAY=$ip:0 -v /tmp/.X11-unix:/tmp/.X11-unix"
+}
