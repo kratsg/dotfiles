@@ -1,31 +1,57 @@
+if [ -f $HOME/.bashrc ]; then
+        source $HOME/.bashrc
+fi
+
+eval "$(/opt/homebrew/bin/brew shellenv)"
+
 eval "$(thefuck --alias)"
 
-localSetupROOT(){
-    . $(brew --prefix root)/libexec/thisroot.sh
+# pyenv requires this before bashrc
+export PYENV_ROOT="$HOME/.pyenv"
+export PATH="$PYENV_ROOT/bin:$PATH"
+if command -v pyenv 1>/dev/null 2>&1; then
+  eval "$(pyenv init --path)";
+  eval "$(pyenv init -)";
+  eval "$(pyenv virtualenv-init -)"
+fi
+mkvirtualenv() {
+  pyenv virtualenv $1 $2
+  pyenv activate $2
 }
+alias workon='pyenv activate'
 
-localSetupROOT6(){
-    . /usr/local/bin/thisroot.sh
-}
+# for NVM
+export NVM_DIR="$HOME/.nvm"
+[ -s "/opt/homebrew/opt/nvm/nvm.sh" ] && \. "/opt/homebrew/opt/nvm/nvm.sh"  # This loads nvm
+[ -s "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm" ] && \. "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm"  # This loads nvm bash_completion
+
+[[ -r "/opt/homebrew/etc/profile.d/bash_completion.sh" ]] && . "/opt/homebrew/etc/profile.d/bash_completion.sh"
+eval "$(fzf --bash)"
 
 atlasJenkins(){
     ssh -N -L localhost:9999:aibuild080.cern.ch:8080 gstark@lxplus.cern.ch
 }
 
-function llpass() {
-  lpass status || LPASS_AGENT_TIMEOUT=86400 lpass login --trust kratsg@gmail.com
-  lpass show --password 622087230793016457 | kinit --password-file=STDIN gstark@CERN.CH
-}
+#function llpass() {
+#  lpass status || LPASS_AGENT_TIMEOUT=86400 lpass login --trust kratsg@gmail.com
+#  lpass show --password 622087230793016457 | kinit --password-file=STDIN gstark@CERN.CH
+#}
 
-if [ -f $(brew --prefix)/etc/bash_completion ]; then
-  . $(brew --prefix)/etc/bash_completion
-  . $(brew --prefix)/etc/bash_completion.d/git-prompt.sh
-fi
-[ -f ~/.fzf.bash ] && source ~/.fzf.bash
+function llpass() {
+  NERSC_KEY="ptrqwcxtz4ihabsb5rzq7wgop4"
+  eval $(op signin)
+  #op item get c4sdr3xxizaixhzxtk5fxkknei --fields password | kinit --password-file=STDIN gstark@SLAC.STANFORD.EDU
+  #echo "SLAC finished"
+  op item get 6y2pfjvzejcjrorfwfeppgfbri --fields password | kinit --password-file=STDIN gstark@CERN.CH
+  echo "CERN finished"
+  ~/sshproxy.sh -u kratsg <<< "$(op item get ${NERSC_KEY} --fields password)$(op item get ${NERSC_KEY} --otp)"
+  echo "Perlmutter finished"
+}
 
 export PYTHONSTARTUP=~/.pythonrc
 PATH=/usr/local/bin:/usr/local/share/npm/bin:$PATH
-PATH=/Library/TeX/Distributions/.DefaultTeX/Contents/Programs/texbin:$PATH
+#PATH=/Library/TeX/Distributions/.DefaultTeX/Contents/Programs/texbin:$PATH
+PATH=/usr/local/texlive/2021/bin/universal-darwin/:$PATH
 export PATH=/usr/local/sbin:$PATH
 
 alias atlas-jets='cd ~/Dropbox/UChicagoSchool/DavidMiller'
@@ -40,16 +66,7 @@ LS_COLORS='rs=0:di=38;5;27:ln=38;5;51:mh=44;38;5;15:pi=40;38;5;11:so=38;5;13:do=
 
 export EDITOR=$(which vim)
 
-# mkvirtualenv
-# virtualenv (use `workon`)
-# https://macintoshguy.wordpress.com/2012/12/12/installing-ipython-on-os-x-mountain-lion/
-source /usr/local/bin/virtualenvwrapper.sh
-
 alias gpython='ipython qtconsole --profile=root'
-
-# brew info hub
-# https://conra.dk/2013/01/18/git-on-osx.html
-eval "$(hub alias -s)"
 
 export SAUCE_USERNAME=kratsg
 export SAUCE_ACCESS_KEY=aec886fc-9611-49ce-a3f7-63c33d0270cb
@@ -59,17 +76,13 @@ export PATH="/usr/local/heroku/bin:$PATH"
 
 export PATH=$HOME/mongodb/bin:$PATH
 
-# for NVM
-export NVM_DIR=~/.nvm
-. $(brew --prefix nvm)/nvm.sh
-
 function light() {
   if [ -z "$2" ]
     then src="pbpaste"
   else
     src="cat $2"
   fi
-  $src | highlight -O rtf --syntax $1 --font Inconsolata --style solarized-dark --font-size 24 | pbcopy
+  $src | highlight -O rtf --syntax $1 --style solarized-dark --font-size 24 | pbcopy
 }
 
 export PATH="$PATH:$HOME/.rvm/bin"
@@ -83,8 +96,43 @@ export LIBRARY_PATH=$CUDA_ROOT/lib:$LIBRARY_PATH
 export PATH=/usr/local/cuda/bin:$PATH
 export PATH="/usr/local/opt/sqlite/bin:$PATH"
 
+# for ROOT
+setup_root(){
+  . /usr/local/bin/thisroot.sh
+  alias roopython3='$(brew --prefix python3)/bin/python3'
+}
+
 setup_display() {
   export ip=$(ifconfig en0 | grep inet | awk '$1=="inet" {print $2}')
   xhost + $ip
   echo "run with -e DISPLAY=$ip:0 -v /tmp/.X11-unix:/tmp/.X11-unix"
 }
+
+#alias root='open -a XQuartz;xhost + 127.0.0.1; docker run --rm -it -e DISPLAY=host.docker.internal:0 -v $HOME:$HOME -w $PWD rootproject/root root'
+#alias hadd='open -a XQuartz;xhost + 127.0.0.1; docker run --rm -it -e DISPLAY=host.docker.internal:0 -v $HOME:$HOME -w $PWD rootproject/root hadd'
+
+# ffmpeg -ss 16.7 -t 1.6 -i /Users/kratsg/Downloads/10000000_1194722684276358_4245912065428022957_n.mp4 -filter_complex "[0:v] fps=12,scale=w=480:h=-1,split [a][b];[a] palettegen=stats_mode=single [p];[b][p] paletteuse=new=1" biden.gif -y
+# convert biden.gif -fill white -undercolor '#00000080' -gravity South -stroke black -strokewidth 1 -pointsize 36 -font /Library/Fonts/Impact.ttf -annotate +120+220 'President Biden' biden_anotate.gif
+# ffmpeg  -ss 0:0:0.05 -i ~/Downloads/doug.mp4 -filter_complex "[0:v] fps=60,scale=w=600:h=-1,crop=11*iw/16:240:2*iw/16:40,split [a][b];[a] palettegen=stats_mode=single [p];[b][p] paletteuse=new=1" doug_meme.gif -y
+
+# Created by `pipx` on 2024-04-03 01:18:24
+export PATH="$PATH:/Users/kratsg/.local/bin"
+export PATH="$PATH:/Applications/Docker.app/Contents/Resources/bin/"
+
+# >>> conda initialize >>>
+# !! Contents within this block are managed by 'conda init' !!
+__conda_setup="$('/Users/kratsg/staged-recipes/.pixi/envs/osx/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"
+if [ $? -eq 0 ]; then
+    eval "$__conda_setup"
+else
+    if [ -f "/Users/kratsg/staged-recipes/.pixi/envs/osx/etc/profile.d/conda.sh" ]; then
+        . "/Users/kratsg/staged-recipes/.pixi/envs/osx/etc/profile.d/conda.sh"
+    else
+        export PATH="/Users/kratsg/staged-recipes/.pixi/envs/osx/bin:$PATH"
+    fi
+fi
+unset __conda_setup
+# <<< conda initialize <<<
+
+# see https://github.com/prefix-dev/pixi/issues/3225
+alias claude='/Users/kratsg/.pixi/envs/nodejs/bin/claude'
