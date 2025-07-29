@@ -1,0 +1,5 @@
+--ignore-dir=.pixi
+--ignore-dir=venv
+--ignore-dir=.mypy_cache
+--ignore-dir=.nox
+--ignore-dir=docs/_generated
